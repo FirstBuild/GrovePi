@@ -6,6 +6,23 @@
 #include "TimerOne.h"
 #include <IRremote.h>
 #include <Wire.h>
+#include <Adafruit_NeoPixel.h>
+#ifdef __AVR__
+ #include <avr/power.h> // Required for 16 MHz Adafruit Trinket
+#endif
+
+#define NEO_PIXEL_DATA_PIN A0
+#define NUM_NEO_PIXELS 8
+Adafruit_NeoPixel pixels(NUM_NEO_PIXELS, NEO_PIXEL_DATA_PIN, NEO_GRB + NEO_KHZ800);
+
+void set_neopixel_color(uint8_t r, uint8_t g, uint8_t b) {
+  int i;
+
+  for (i=0; i<NUM_NEO_PIXELS; i++) {
+    pixels.setPixelColor(i, pixels.Color(r, g, b));
+  }
+  pixels.show();
+}
 
 DHT dht;
 Grove_LED_Bar ledbar[6]; // 7 instances for D2-D8, however, max 4 bars, you
@@ -103,7 +120,72 @@ void setup() {
 
   DDRD |= 0x10;
   PORTD &= ~0x10;
+
+  pixels.begin();
+
+  Serial.println(F("Grove Pi+ Starting..."));
+
+  //---------------------------------------------- Set PWM frequency for D3 & D11 ------------------------------
+  // TCCR2B = TCCR2B & B11111000 | B00000001;    // set timer 2 divisor to     1 for PWM frequency of 31372.55 Hz
+  TCCR2B = TCCR2B & B11111000 | B00000010;    // set timer 2 divisor to     8 for PWM frequency of  3921.16 Hz
+  //TCCR2B = TCCR2B & B11111000 | B00000011;    // set timer 2 divisor to    32 for PWM frequency of   980.39 Hz
+  // TCCR2B = TCCR2B & B11111000 | B00000100;    // set timer 2 divisor to    64 for PWM frequency of   490.20 Hz (The DEFAULT)
+  //TCCR2B = TCCR2B & B11111000 | B00000101;    // set timer 2 divisor to   128 for PWM frequency of   245.10 Hz
+  //TCCR2B = TCCR2B & B11111000 | B00000110;    // set timer 2 divisor to   256 for PWM frequency of   122.55 Hz
+  //TCCR2B = TCCR2B & B11111000 | B00000111;    // set timer 2 divisor to  1024 for PWM frequency of    30.64 Hz
 }
+
+enum {
+  Command_DigitalRead = 1,
+  Command_DigitalWrite = 2,
+  Command_AnalogRead = 3,
+  Command_AnalogWrite = 4,
+  Command_PinMode = 5,
+  Command_DustSensor_GetSampleTime = 6,
+  Command_UltrasonicRead = 7,
+  Command_FirmwareVersionRead = 8,
+  Command_DustSensor_SetSampleTime = 9,
+  Command_DustSensor_Read = 10,
+  Command_Encoder_Read = 11,
+  Command_Flowmeter_Read = 12,
+  Command_Flowmeter_Disable = 13,
+  Command_DustSensor_Enable = 14,
+  Command_DustSensor_Disable = 15,
+  Command_Encoder_Enable = 16,
+  Command_Encoder_Disable = 17,
+  Command_Flowmeter_Enable = 18,
+
+  Command_IR_Receive = 21,
+  Command_IR_Initialize = 22,
+  Command_ID_IsDataAvailable = 24,
+
+  Command_DHT_Read = 40,
+  Command_GroveLedBar_Initialize = 50,
+  Command_GroveLedBar_ChangeOrientation = 51,
+  Command_GroveLedBar_SetLevel = 52,
+  Command_GroveLedBar_SetOneLed = 53,
+  Command_GroveLedBar_ToggleOneLed = 54,
+  Command_GroveLedBar_SetState = 55,
+  Command_GroveLedBar_GetState = 56,
+  Command_Grove4DigitDisplay_Initialize = 70,
+  Command_Grove4DigitDisplay_SetBrightness = 71,
+  Command_Grove4DigitDisplay_ShowValue = 72,
+  Command_Grove4DigitDisplay_ShowValueWithLeadingZeros = 73,
+  Command_Grove4DigitDisplay_SetDigit = 74,
+  Command_Grove4DigitDisplay_SetSegment = 75,
+  Command_Grove4DigitDisplay_SetValueWithColon = 76,
+  Command_Grove4DigitDisplay_AnalogRead = 77,
+  Command_Grove4DigitDisplay_DisplayOn = 78,
+  Command_Grove4DigitDisplay_DisplayOff = 79,
+  Command_ChainableLed_StoreColor = 90,
+  Command_ChainableLed_Initialized = 91,
+  Command_ChainableLed_TestColors = 92,
+  Command_ChainableLed_SetWithPattern = 93,
+  Command_ChainableLed_SetWithModulo = 94,
+  Command_ChainableLed_SetLevel = 95,
+
+  Command_Neopixel_SetColor = 100,
+};
 
 void processIO() {
   long dur, RangeCm;
@@ -600,6 +682,8 @@ void processIO() {
     } else if (cmd[0] == ir_read_isdata) {
       b[0] = cmd[0];
       b[1] = irrecv.decode(&results);
+    } else if (cmd[0] == Command_Neopixel_SetColor) {
+      set_neopixel_color(cmd[1], cmd[2], cmd[3]);
     }
   }
   if (enc_run_bk) {

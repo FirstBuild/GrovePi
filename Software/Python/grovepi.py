@@ -171,6 +171,9 @@ flow_read_cmd=[12]
 flow_disable_cmd=[13]
 flow_en_cmd=[18]
 
+# NeoPixels
+neopixel_set_color_cmd=[100]
+
 
 # Function declarations of the various functions used for encoding and sending
 # data from RPi to Arduino
@@ -636,6 +639,11 @@ def flowRead():
 		return [data_back[0],data_back[2] * 256 + data_back[1]]
 	else:
 		return [-1,-1]
+
+def neopixelSetColor(r, g, b):
+	write_i2c_block(neopixel_set_color_cmd + [r, g, b])
+	read_i2c_block(no_bytes = 1)
+	return 1
 
 def main():
 	print("library supports this fw versions: " +
